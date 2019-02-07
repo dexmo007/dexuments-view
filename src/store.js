@@ -34,11 +34,12 @@ export default new Vuex.Store({
       }
       commit('initDb');
       state.db.serialize(() => {
-        state.db.all('SELECT * FROM face_mapping', (error, rows) => {
+        state.db.all('SELECT fm.*, fn.name FROM face_mapping fm LEFT JOIN face_names fn ON fn.face_id = fm.face_id', (error, rows) => {
           if (error) {
             console.error(error);
             return;
           }
+          console.log(rows);
           const faces = rows.reduce((a, row) => {
             (a[row.face_id] = a[row.face_id] || []).push({
               uri: row.img_path,
