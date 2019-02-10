@@ -26,6 +26,9 @@ export default new Vuex.Store({
     setFaces(state, faces) {
       state.faces = faces;
     },
+    setFaceName(state, faceId, name) {
+      state.faces[faceId].name = name;
+    },
   },
   actions: {
     loadPeople({ commit, state }) {
@@ -45,6 +48,8 @@ export default new Vuex.Store({
               uri: row.img_path,
               url: `file://${path.resolve(state.root, row.img_path)}`,
               absolutePath: path.resolve(state.root, row.img_path),
+              name: row.name,
+              faceId: row.face_id,
               faceLocation: {
                 top: row.top,
                 right: row.right,
@@ -55,6 +60,23 @@ export default new Vuex.Store({
             return a;
           }, {});
           commit('setFaces', faces);
+        });
+      });
+    },
+    changeName({ commit, state }, { faceId, name }) {
+      return new Promise((resolve, reject) => {
+        commit('initDb');
+        state.db.serialize(() => {
+          state.db.run('INSERT INTO face_names(face_id, name) VALUES (?, ?) ON CONFLICT(face_id) DO UPDATE SET name = ?',
+            [faceId, name, name],
+            (error) => {
+              if (error) {
+                console.error(error);
+                reject(error);
+              }
+              commit('setFaceName', faceId, name);
+              setTimeout(resolve, 1000);
+            });
         });
       });
     },

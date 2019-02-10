@@ -1,6 +1,6 @@
 export default {
-  productName: 'app-electron-vuetify',
-  domainName: 'example.com',
+  productName: 'Dexuments',
+  domainName: 'dexuments.dexmo-hq.com',
   menu: {
     home: 'Home',
     profile: 'Profile',

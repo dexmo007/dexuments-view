@@ -1,24 +1,48 @@
 <template>
   <v-container>
     <v-layout row>
-      <v-text-field :readonly="!editingName" class="person-name" :value="face_id" v-model="name">
+      <v-text-field ref="nameField" :readonly="!editingName"
+      class="person-name" @dblclick="edit()" @keyup.enter="doChangeName()"
+      v-model="name">
       </v-text-field>
-      <v-icon v-if="!editingName" @click="editingName = true">edit</v-icon>
-      <v-icon v-else @click="changeName()">check</v-icon>
+      <v-icon v-if="!editingName" @click="edit()">
+        edit
+        </v-icon>
+      <v-progress-circular indeterminate color="white" v-else-if="savingName" />
+      <v-icon v-else @click="doChangeName()">check</v-icon>
     </v-layout>
     <div class="photos">
       <img
         v-for="(p, i) in face"
         :key="i"
         :src="'data:image/jpeg;base64,' + imagesWithFaceLocations[i]"
-        :alt="p.uri"
         :height="imageHeight"
+        @contextmenu="showContextMenu($event, i)"
       >
     </div>
+    <v-menu v-model="showMenu"
+      :position-x="x"
+      :position-y="y"
+      absolute
+      offset-y>
+      <v-list>
+        <v-list-tile @click="reassignFace()">
+          <v-list-tile-title>
+            Reassign face
+          </v-list-tile-title>
+        </v-list-tile>
+
+        <v-list-tile @click="reportNoFace()">
+          <v-list-tile-title>
+            Ain't no face
+          </v-list-tile-title>
+        </v-list-tile>
+      </v-list>
+    </v-menu>
   </v-container>
 </template>
 <script>
-import { mapGetters } from 'vuex';
+import { mapGetters, mapActions } from 'vuex';
 import cv from 'opencv4nodejs';
 
 export default {
@@ -29,7 +53,11 @@ export default {
     return {
       imageHeight: 300,
       editingName: false,
+      savingName: false,
       name: this.face_id,
+      showMenu: false,
+      x: 0,
+      y: 0,
     };
   },
   computed: {
@@ -53,8 +81,55 @@ export default {
     },
   },
   methods: {
-    changeName() {
-      console.log(this.name);
+    ...mapActions(['changeName']),
+    doChangeName() {
+      // todo check it actually changed
+      this.savingName = true;
+      this.changeName({ faceId: this.face_id, name: this.name })
+        .then(() => {
+          this.savingName = false;
+          this.editingName = false;
+        })
+        .catch((error) => {
+          console.error(error);
+        });
+    },
+    edit() {
+      this.$refs.nameField.$refs.input.select();
+      this.editingName = true;
+    },
+    showContextMenu(e, i) {
+      e.preventDefault();
+      this.x = e.clientX;
+      this.y = e.clientY;
+      this.clickedFace = this.face[i];
+      this.$nextTick(() => {
+        this.showMenu = true;
+      });
+    },
+    reassignFace() {
+      console.log('reassign face',
+        `${this.clickedFace.uri}(${Object.values(this.clickedFace.faceLocation).join(',')})`,
+        'to any of',
+        Object
+          .keys(this.$store.state.faces)
+          .filter(id => id !== this.face_id)
+          .map(id => this.$store.state.faces[id][0].name || id));
+    },
+    reportNoFace() {
+      console.log(`${this.clickedFace.uri}(${Object.values(this.clickedFace.faceLocation).join(',')})`,
+        'is not face');
+    },
+  },
+  watch: {
+    face: {
+      immediate: true,
+      handler(v) {
+        const faceName = v[0].name;
+        if (faceName) {
+          this.name = faceName;
+        }
+      },
     },
   },
 };

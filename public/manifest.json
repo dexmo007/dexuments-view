@@ -1,6 +1,6 @@
 {
-  "name": "app-electron",
-  "short_name": "app-electron",
+  "name": "Dexuments",
+  "short_name": "dexuments",
   "icons": [
     {
       "src": "/img/icons/android-chrome-192x192.png",
