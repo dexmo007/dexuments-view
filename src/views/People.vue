@@ -8,7 +8,7 @@
     >
       <span :class="{unknown: !face[0].name}">{{face[0].name || 'Unknown person'}}</span>
       <div class="thumbnails">
-        <img v-for="(p,i) in face" :key="i" :src="p.url" height="66">
+        <img v-for="(p,i) in face.slice(0,6)" :key="i" :src="p.url" height="66">
       </div>
     </router-link>
   </div>

@@ -29,6 +29,9 @@ export default new Vuex.Store({
     setFaceName(state, faceId, name) {
       state.faces[faceId].name = name;
     },
+    cleanFaces(state) {
+      state.faces = null;
+    },
   },
   actions: {
     loadPeople({ commit, state }) {
@@ -42,7 +45,6 @@ export default new Vuex.Store({
             console.error(error);
             return;
           }
-          console.log(rows);
           const faces = rows.reduce((a, row) => {
             (a[row.face_id] = a[row.face_id] || []).push({
               uri: row.img_path,
@@ -65,7 +67,6 @@ export default new Vuex.Store({
     },
     changeName({ commit, state }, { faceId, name }) {
       return new Promise((resolve, reject) => {
-        commit('initDb');
         state.db.serialize(() => {
           state.db.run('INSERT INTO face_names(face_id, name) VALUES (?, ?) ON CONFLICT(face_id) DO UPDATE SET name = ?',
             [faceId, name, name],
@@ -77,6 +78,52 @@ export default new Vuex.Store({
               commit('setFaceName', faceId, name);
               setTimeout(resolve, 1000);
             });
+        });
+      });
+    },
+    reportNoFace({ commit, state, dispatch }, face) {
+      return new Promise((resolve, reject) => {
+        state.db.serialize(() => {
+          const loc = face.faceLocation;
+          state.db.run(`DELETE FROM face_mapping 
+          WHERE face_id = ? 
+          AND img_path = ? 
+          AND top = ? AND right = ? AND bottom = ? AND left = ?
+          `, [face.faceId, face.uri, loc.top, loc.right, loc.bottom, loc.left],
+          (error) => {
+            if (error) {
+              console.log(error);
+              reject(error);
+            } else {
+              commit('cleanFaces');
+              dispatch('loadPeople');
+              resolve();
+            }
+          });
+        });
+      });
+    },
+    reassignFace({ commit, state, dispatch }, { face, newFaceId }) {
+      console.log(face, newFaceId);
+      return new Promise((resolve, reject) => {
+        state.db.serialize(() => {
+          const loc = face.faceLocation;
+          state.db.run(`UPDATE face_mapping 
+          SET face_id = ?
+          WHERE face_id = ? 
+          AND img_path = ? 
+          AND top = ? AND right = ? AND bottom = ? AND left = ?
+          `, [newFaceId, face.faceId, face.uri, loc.top, loc.right, loc.bottom, loc.left],
+          (error) => {
+            if (error) {
+              console.log(error);
+              reject(error);
+            } else {
+              commit('cleanFaces');
+              dispatch('loadPeople');
+              resolve();
+            }
+          });
         });
       });
     },

@@ -15,8 +15,9 @@
       <img
         v-for="(p, i) in face"
         :key="i"
-        :src="'data:image/jpeg;base64,' + imagesWithFaceLocations[i]"
+        src=""
         :height="imageHeight"
+        :width="p.imgSize.width * imageHeight / p.imgSize.height"
         @contextmenu="showContextMenu($event, i)"
       >
     </div>
@@ -32,22 +33,28 @@
           </v-list-tile-title>
         </v-list-tile>
 
-        <v-list-tile @click="reportNoFace()">
+        <v-list-tile @click="reportNoFace(clickedFace)">
           <v-list-tile-title>
             Ain't no face
           </v-list-tile-title>
         </v-list-tile>
       </v-list>
     </v-menu>
+    <reassign-face :choices="reassignChoices" v-model="reassignShow"></reassign-face>
   </v-container>
 </template>
 <script>
 import { mapGetters, mapActions } from 'vuex';
-import cv from 'opencv4nodejs';
+import { loadImageMarkFaceAsBase64 } from '@/util/ImageUtils';
+import sizeOf from 'image-size';
+import ReassignFace from '@/components/ReassignFace.vue';
 
 export default {
   props: {
     face_id: String,
+  },
+  components: {
+    ReassignFace,
   },
   data() {
     return {
@@ -58,30 +65,19 @@ export default {
       showMenu: false,
       x: 0,
       y: 0,
+      observer: null,
+      reassignChoices: null,
+      reassignShow: false,
     };
   },
   computed: {
     face() {
-      return this.getFace(this.face_id);
+      return this.getFace(this.face_id).map(face => ({ ...face, imgSize: sizeOf(face.absolutePath) }));
     },
     ...mapGetters(['getFace']),
-    imagesWithFaceLocations() {
-      return this.face.map((f) => {
-        let image = cv.imread(f.absolutePath);
-        const scalar = this.imageHeight / image.rows;
-        image = image.resize(this.imageHeight, Math.round(image.cols * scalar));
-        image.drawRectangle(
-          new cv.Point2(f.faceLocation.right * scalar, f.faceLocation.top * scalar),
-          new cv.Point2(f.faceLocation.left * scalar, f.faceLocation.bottom * scalar),
-          new cv.Vec3(0, 0, 255),
-          2,
-        );
-        return cv.imencode('.jpg', image).toString('base64');
-      });
-    },
   },
   methods: {
-    ...mapActions(['changeName']),
+    ...mapActions(['changeName', 'reportNoFace']),
     doChangeName() {
       // todo check it actually changed
       this.savingName = true;
@@ -108,17 +104,18 @@ export default {
       });
     },
     reassignFace() {
-      console.log('reassign face',
-        `${this.clickedFace.uri}(${Object.values(this.clickedFace.faceLocation).join(',')})`,
-        'to any of',
-        Object
-          .keys(this.$store.state.faces)
-          .filter(id => id !== this.face_id)
-          .map(id => this.$store.state.faces[id][0].name || id));
-    },
-    reportNoFace() {
-      console.log(`${this.clickedFace.uri}(${Object.values(this.clickedFace.faceLocation).join(',')})`,
-        'is not face');
+      this.reassignChoices = Object
+        .keys(this.$store.state.faces)
+        .filter(id => id !== this.face_id)
+        .map(id => ({ name: this.$store.state.faces[id][0].name, faceId: id, face: this.clickedFace }));
+      this.reassignShow = true;
+      // console.log('reassign face',
+      //   `${this.clickedFace.uri}(${Object.values(this.clickedFace.faceLocation).join(',')})`,
+      //   'to any of',
+      //   Object
+      //     .keys(this.$store.state.faces)
+      //     .filter(id => id !== this.face_id)
+      //     .map(id => this.$store.state.faces[id][0].name || id));
     },
   },
   watch: {
@@ -131,6 +128,25 @@ export default {
         }
       },
     },
+  },
+  mounted() {
+    const targets = this.$el.querySelectorAll('.photos img');
+
+    const lazyLoad = (target, i) => {
+      const io = new IntersectionObserver((entries, observer) => {
+        const entry = entries[0];
+        if (entry.isIntersecting) {
+          const f = this.face[i];
+          const image = loadImageMarkFaceAsBase64(f.absolutePath, f.faceLocation, this.imageHeight);
+          entry.target.setAttribute('src', `data:image/jpeg;base64,${image}`);
+          observer.disconnect();
+        }
+      });
+
+      io.observe(target);
+    };
+
+    targets.forEach(lazyLoad);
   },
 };
 </script>

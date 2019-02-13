@@ -7,12 +7,13 @@
     "build": "vue-cli-service build",
     "lint": "vue-cli-service lint",
     "test:unit": "vue-cli-service test:unit",
-    "electron:rebuild": "electron-rebuild -p -f -w opencv4nodejs",
+    "electron:rebuild": "electron-rebuild -p -f -w opencv4nodejs,sqlite3",
     "build:electron": "vue-cli-service build:electron",
     "electron:serve": "vue-cli-service electron:serve"
   },
   "dependencies": {
     "@babel/polyfill": "^7.2.5",
+    "image-size": "^0.7.1",
     "material-design-icons-iconfont": "^4.0.4",
     "opencv4nodejs": "^4.14.1",
     "register-service-worker": "^1.0.0",
