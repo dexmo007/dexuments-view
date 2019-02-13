@@ -1,5 +1,5 @@
-# dexuments-view
-A view on the dexuments index using Electron, Vue and Vuetify.
+# indexmo
+A view on the indexmo using Electron, Vue and Vuetify.
 
 ### Project setup
 Installs dependencies:
